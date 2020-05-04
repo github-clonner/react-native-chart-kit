@@ -1,17 +1,22 @@
-import React from 'react'
-import {View} from 'react-native'
-import {Svg, Rect, G} from 'react-native-svg'
-import AbstractChart from './abstract-chart'
+import React from "react";
+import { View } from "react-native";
+import { Svg, Rect, G } from "react-native-svg";
+import AbstractChart from "./abstract-chart";
 
-const barWidth = 32
+const barWidth = 32;
 
 class BarChart extends AbstractChart {
+  getBarPercentage = () => {
+    const { barPercentage = 1 } = this.props.chartConfig;
+    return barPercentage;
+  };
+
   renderBars = config => {
-    const {data, width, height, paddingTop, paddingRight} = config
-    const baseHeight = this.calcBaseHeight(data, height)
+    const { data, width, height, paddingTop, paddingRight, barRadius } = config;
+    const baseHeight = this.calcBaseHeight(data, height);
     return data.map((x, i) => {
-      const barHeight = this.calcHeight(x, data, height)
-      const barWidth = 32
+      const barHeight = this.calcHeight(x, data, height);
+      const barWidth = 32 * this.getBarPercentage();
       return (
         <Rect
           key={Math.random()}
@@ -24,19 +29,21 @@ class BarChart extends AbstractChart {
             ((barHeight > 0 ? baseHeight - barHeight : baseHeight) / 4) * 3 +
             paddingTop
           }
+          rx={barRadius}
           width={barWidth}
           height={(Math.abs(barHeight) / 4) * 3}
           fill="url(#fillShadowGradient)"
         />
-      )
-    })
-  }
+      );
+    });
+  };
 
   renderBarTops = config => {
-    const {data, width, height, paddingTop, paddingRight} = config
-    const baseHeight = this.calcBaseHeight(data, height)
+    const { data, width, height, paddingTop, paddingRight } = config;
+    const baseHeight = this.calcBaseHeight(data, height);
     return data.map((x, i) => {
-      const barHeight = this.calcHeight(x, data, height)
+      const barHeight = this.calcHeight(x, data, height);
+      const barWidth = 32 * this.getBarPercentage();
       return (
         <Rect
           key={Math.random()}
@@ -50,19 +57,35 @@ class BarChart extends AbstractChart {
           height={2}
           fill={this.props.chartConfig.color(0.6)}
         />
-      )
-    })
-  }
+      );
+    });
+  };
 
   render() {
-    const paddingTop = 16
-    const paddingRight = 64
-    const {width, height, data, style = {}} = this.props
-    const {borderRadius = 0} = style
+    const {
+      width,
+      height,
+      data,
+      style = {},
+      withHorizontalLabels = true,
+      withVerticalLabels = true,
+      verticalLabelRotation = 0,
+      horizontalLabelRotation = 0,
+      withInnerLines = true,
+      showBarTops = true,
+      segments = 4
+    } = this.props;
+    const { borderRadius = 0, paddingTop = 16, paddingRight = 64 } = style;
     const config = {
       width,
-      height
-    }
+      height,
+      verticalLabelRotation,
+      horizontalLabelRotation,
+      barRadius: (this.props.chartConfig && this.props.chartConfig.barRadius) || 0,
+      decimalPlaces: (this.props.chartConfig && this.props.chartConfig.decimalPlaces) || 2,
+      formatYLabel: (this.props.chartConfig && this.props.chartConfig.formatYLabel) || function(label){return label},
+      formatXLabel: (this.props.chartConfig && this.props.chartConfig.formatXLabel) || function(label){return label},
+    };
     return (
       <View style={style}>
         <Svg height={height} width={width}>
@@ -78,29 +101,35 @@ class BarChart extends AbstractChart {
             fill="url(#backgroundGradient)"
           />
           <G>
-            {this.renderHorizontalLines({
-              ...config,
-              count: 4,
-              paddingTop
-            })}
+            {withInnerLines
+              ? this.renderHorizontalLines({
+                  ...config,
+                  count: segments,
+                  paddingTop
+                })
+              : null}
           </G>
           <G>
-            {this.renderHorizontalLabels({
-              ...config,
-              count: 4,
-              data: data.datasets[0].data,
-              paddingTop,
-              paddingRight
-            })}
+            {withHorizontalLabels
+              ? this.renderHorizontalLabels({
+                  ...config,
+                  count: segments,
+                  data: data.datasets[0].data,
+                  paddingTop,
+                  paddingRight
+                })
+              : null}
           </G>
           <G>
-            {this.renderVerticalLabels({
-              ...config,
-              labels: data.labels,
-              paddingRight,
-              paddingTop,
-              horizontalOffset: barWidth
-            })}
+            {withVerticalLabels
+              ? this.renderVerticalLabels({
+                  ...config,
+                  labels: data.labels,
+                  paddingRight,
+                  paddingTop,
+                  horizontalOffset: barWidth * this.getBarPercentage()
+                })
+              : null}
           </G>
           <G>
             {this.renderBars({
@@ -111,7 +140,7 @@ class BarChart extends AbstractChart {
             })}
           </G>
           <G>
-            {this.renderBarTops({
+            {showBarTops && this.renderBarTops({
               ...config,
               data: data.datasets[0].data,
               paddingTop,
@@ -120,8 +149,8 @@ class BarChart extends AbstractChart {
           </G>
         </Svg>
       </View>
-    )
+    );
   }
 }
 
-export default BarChart
+export default BarChart;

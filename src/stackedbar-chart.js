@@ -1,11 +1,23 @@
-import React from 'react'
-import {View} from 'react-native'
-import {Svg, Rect, G, Text} from 'react-native-svg'
-import AbstractChart from './abstract-chart'
+import React from "react";
+import { View } from "react-native";
+import { Svg, Rect, G, Text } from "react-native-svg";
+import AbstractChart from "./abstract-chart";
 
-const barWidth = 32
+const barWidth = 32;
 
 class StackedBarChart extends AbstractChart {
+
+  getBarPercentage = () => {
+    const { barPercentage = 1 } = this.props.chartConfig;
+    return barPercentage;
+  };
+
+  getBarRadius = (ret, x) => {
+    return this.props.chartConfig.barRadius && ret.length === x.length - 1
+      ? this.props.chartConfig.barRadius
+      : 0;
+  };
+
   renderBars = config => {
     const {
       data,
@@ -14,53 +26,61 @@ class StackedBarChart extends AbstractChart {
       paddingTop,
       paddingRight,
       border,
-      colors
-    } = config
+      colors,
+      stackedBar = false
+    } = config;
     return data.map((x, i) => {
-      const barWidth = 32
-      const ret = []
-      let h = 0
-      let st = paddingTop
+      const barWidth = 32 * this.getBarPercentage();
+      const ret = [];
+      let h = 0;
+      let st = paddingTop;
+      let fac = 1;
+      if(stackedBar) {
+        fac = .7;
+      }
       for (let z = 0; z < x.length; z++) {
-        h = (height - 55) * (x[z] / border)
-        const y = (height / 4) * 3 - h + st
+        h = (height - 55) * (x[z] / border);
+        const y = (height / 4) * 3 - h + st;
         const xC =
           (paddingRight +
             (i * (width - paddingRight)) / data.length +
             barWidth / 2) *
-          0.7
+            fac;
         ret.push(
           <Rect
             key={Math.random()}
             x={xC}
             y={y}
+            rx={this.getBarRadius(ret, x)}
+            ry={this.getBarRadius(ret, x)}
             width={barWidth}
             height={h}
             fill={colors[z]}
           />
-        )
-        ret.push(
-          <Text
-            key={Math.random()}
-            x={xC + 7 + barWidth / 2}
-            textAnchor="end"
-            y={h > 15 ? y + 15 : y + 7}
-            fontSize={12}
-            fill="#fff"
-          >
-            {x[z]}
-          </Text>
-        )
+        );
+        if (!this.props.hideLegend) {
+          ret.push(
+            <Text
+              key={Math.random()}
+              x={xC + 7 + barWidth / 2}
+              textAnchor="end"
+              y={h > 15 ? y + 15 : y + 7}
+              {...this.getPropsForLabels()}
+            >
+              {x[z]}
+            </Text>
+          );
+        }
 
-        st -= h
+        st -= h;
       }
 
-      return ret
-    })
-  }
+      return ret;
+    });
+  };
 
   renderLegend = config => {
-    const {legend, colors, width, height} = config
+    const { legend, colors, width, height } = config;
     return legend.map((x, i) => {
       return (
         <G key={Math.random()}>
@@ -74,35 +94,43 @@ class StackedBarChart extends AbstractChart {
             y={height * 0.7 - i * 50}
           />
           <Text
-            fill="#fff"
-            fontSize={16}
             x={width * 0.78}
             y={height * 0.76 - i * 50}
+            {...this.getPropsForLabels()}
           >
             {x}
           </Text>
         </G>
-      )
-    })
-  }
+      );
+    });
+  };
 
   render() {
-    const paddingTop = 15
-    const paddingRight = 50
-    const {width, height, style = {}, data} = this.props
-    const {borderRadius = 0} = style
+    const paddingTop = 15;
+    const paddingRight = 50;
+    const {
+      width,
+      height,
+      style = {},
+      data,
+      withHorizontalLabels = true,
+      withVerticalLabels = true,
+      segments = 4,
+      decimalPlaces
+    } = this.props;
+    const { borderRadius = 0 } = style;
     const config = {
       width,
       height
-    }
-    let border = 0
+    };
+    let border = 0;
     for (let i = 0; i < data.data.length; i++) {
-      const actual = data.data[i].reduce((pv, cv) => pv + cv, 0)
+      const actual = data.data[i].reduce((pv, cv) => pv + cv, 0);
       if (actual > border) {
-        border = actual
+        border = actual;
       }
     }
-
+    var stackedBar = data.legend && data.legend.length == 0 ? false : true;
     return (
       <View style={style}>
         <Svg height={height} width={width}>
@@ -120,28 +148,33 @@ class StackedBarChart extends AbstractChart {
           <G>
             {this.renderHorizontalLines({
               ...config,
-              count: 4,
+              count: segments,
               paddingTop
             })}
           </G>
           <G>
-            {this.renderHorizontalLabels({
-              ...config,
-              count: 4,
-              data: [0, border],
-              paddingTop,
-              paddingRight
-            })}
+            {withHorizontalLabels
+              ? this.renderHorizontalLabels({
+                  ...config,
+                  count: segments,
+                  data: [0, border],
+                  paddingTop,
+                  paddingRight,
+                  decimalPlaces
+                })
+              : null}
           </G>
           <G>
-            {this.renderVerticalLabels({
-              ...config,
-              labels: data.labels,
-              paddingRight: paddingRight + 28,
-              stackedBar: true,
-              paddingTop,
-              horizontalOffset: barWidth
-            })}
+            {withVerticalLabels
+              ? this.renderVerticalLabels({
+                  ...config,
+                  labels: data.labels,
+                  paddingRight: paddingRight + 28,
+                  stackedBar,
+                  paddingTop,
+                  horizontalOffset: barWidth
+                })
+              : null}
           </G>
           <G>
             {this.renderBars({
@@ -150,17 +183,18 @@ class StackedBarChart extends AbstractChart {
               border,
               colors: this.props.data.barColors,
               paddingTop,
-              paddingRight: paddingRight + 20
+              paddingRight: paddingRight + 20,
+              stackedBar,
             })}
           </G>
-          {this.renderLegend({
+          {data.legend && data.legend.length != 0 && this.renderLegend({
             ...config,
             legend: data.legend,
             colors: this.props.data.barColors
           })}
         </Svg>
       </View>
-    )
+    );
   }
 }
-export default StackedBarChart
+export default StackedBarChart;
